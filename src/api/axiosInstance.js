@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// const BASE_URL = 'https://backmern.picknow.in/api'; // Replace with your actual API URL
-const BASE_URL = 'http://localhost:7000';
+const BASE_URL = 'http://localhost:7000/';
 
 
 const axiosInstance = axios.create({
@@ -13,7 +12,7 @@ const axiosInstance = axios.create({
 });
 
 // Request interceptorx`
-axios.interceptors.request.use(
+axiosInstance.interceptors.request.use(
   (config) => {
     // Get token from localStorage  
     const token = localStorage.getItem('token');
@@ -76,4 +75,4 @@ axios.interceptors.response.use(
   }
 );
 
-export default axios; 
+export default axiosInstance; 

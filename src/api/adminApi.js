@@ -1,9 +1,9 @@
-import axios from './axios';
+import axiosInstance from './axiosInstance';
 
 
 export const postRegister = async (adminData) => {
   try {
-    const response = await axios.post('/api/admin/create', adminData, {
+    const response = await axiosInstance.post('/api/admin/create', adminData, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -36,7 +36,7 @@ export const postRegister = async (adminData) => {
 
 export const postLogin = async (email, password) => {
   try {
-    const response = await axios.post('/api/admin/login', { email, password });
+    const response = await axiosInstance.post('/api/admin/login', { email, password });
     return response.data;
   } catch (error) {
     const message = error.response?.data?.message || 'Login failed';
@@ -46,7 +46,7 @@ export const postLogin = async (email, password) => {
 
 export const getBanners = async () => {
   try {
-    const response = await axios.get('/api/banner/getall');
+    const response = await axiosInstance.get('/api/banner/getall');
     return response.data;
   }
   catch (error) {
@@ -55,10 +55,41 @@ export const getBanners = async () => {
   } 
 };
 
+export const postBanner = async (bannerData) => {
+  try {
+    const response = await axiosInstance.post('/api/banner/create', bannerData);
+    return response.data;
+  }
+  catch (error) {
+    const message = error.response?.data?.message || 'Failed to create banner';
+    throw new Error(message);
+  } 
+};
+
+// export const updateBanner = async (id, updatedData) => {
+//   try {
+//     const response = await axiosInstance.put(`/api/banner/update/${id}`, updatedData);
+//     return response.data;
+//   } catch (error) {
+//     const message = error.response?.data?.message || 'Failed to update banner';
+//     throw new Error(message);
+//   }
+// };
+
+// export const deleteBanner = async (id, deleteData) => {
+//   try {
+//     const response = await axiosInstance.delete(`/api/banner/delete/${id}`, deleteData);
+//     return response.data;
+//   }
+//   catch (error) {
+//     const message = error.response?.data?.message || 'Failed to delete banner';
+//     throw new Error(message);
+//   }
+// };
 
 export const postProduct = async (productData) => {
   try {
-    const response = await axios.post('/api/product/create', productData);
+    const response = await axiosInstance.post('/api/product/create', productData);
       return response.data;
     }catch (error) {
     const message = error.response?.data?.message || 'Failed to create product';
@@ -68,7 +99,7 @@ export const postProduct = async (productData) => {
 
 export const getProducts = async () => {
   try {
-    const response = await axios.get('/api/product/getall');  
+    const response = await axiosInstance.get('/api/product/getall');  
     return response.data;
   } catch (error) {
     const message = error.response?.data?.message || 'Failed to fetch products';
@@ -78,7 +109,7 @@ export const getProducts = async () => {
 
 export const updateProduct = async (id, updatedData) => {
   try {
-    const response = await axios.put(`/api/product/update/${id}`, updatedData);
+    const response = await axiosInstance.put(`/api/product/update/${id}`, updatedData);
     return response.data;
   } catch (error) {
     const message = error.response?.data?.message || 'Failed to update product';
@@ -88,7 +119,7 @@ export const updateProduct = async (id, updatedData) => {
 
 export const deleteProduct = async (id, deleteData) => {
   try {
-    const response = await axios.delete(`/api/product/delete/${id}`, deleteData);
+    const response = await axiosInstance.delete(`/api/product/delete/${id}`, deleteData);
     return response.data;
   }
   catch (error) {
@@ -99,7 +130,7 @@ export const deleteProduct = async (id, deleteData) => {
 
 export const getCategories = async () => {
   try {
-    const response = await axios.get('/api/category/all');
+    const response = await axiosInstance.get('/api/category/all');
     return response.data;
   }
   catch (error) {
@@ -107,3 +138,8 @@ export const getCategories = async () => {
     throw new Error(message);
   }
 };
+
+// export const postCategory = async (categoryData) => {
+//   try{
+//     const respone = await axios.post('/api/ca)
+//   }

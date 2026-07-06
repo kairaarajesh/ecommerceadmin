@@ -32,14 +32,11 @@ const Products = () => {
   // ═══════════════════════════════════════════════════════
   //  ✅ DERIVED MAPS — all keyed by category _id
   // ═══════════════════════════════════════════════════════
-
-  // Category list for dropdowns: [{_id, cname}, ...]
   const categories = useMemo(() =>
-    categoryList.map(c => ({ _id: c._id || c.id, cname: c.cname })),
+    categoryList.map(c => ({ _id: c._id || c.id, cname: c._id })),
     [categoryList]
   );
 
-  // _id → [subcategory names] for subcategory dropdown
   const subCategoriesMap = useMemo(() => {
     const map = {};
     categoryList.forEach(c => {
@@ -49,29 +46,97 @@ const Products = () => {
     return map;
   }, [categoryList]);
 
-  // _id → cname for table/view display
   const catNameMap = useMemo(() => {
     const map = {};
     categoryList.forEach(c => { map[c._id || c.id] = c.cname; });
     return map;
   }, [categoryList]);
 
-  // Helper: resolve pCategory (might be _id or cname) → display name
   const resolveCatName = useCallback((pCategory) => {
     if (!pCategory) return '';
     if (catNameMap[pCategory]) return catNameMap[pCategory];
-    // Fallback: find by cname match
     const found = categoryList.find(c => c.cname === pCategory);
     return found ? found.cname : pCategory;
   }, [catNameMap, categoryList]);
 
-  // Helper: resolve pCategory (might be _id or cname) → _id
   const resolveCatId = useCallback((pCategory) => {
     if (!pCategory) return '';
-    if (catNameMap[pCategory]) return pCategory; // already _id
+    if (catNameMap[pCategory]) return pCategory;
     const found = categoryList.find(c => c.cname === pCategory);
     return found ? (found._id || found.id) : pCategory;
   }, [catNameMap, categoryList]);
+
+  // ═══════════════════════════════════════════════════════
+  //  ✅ ALL STYLE CONSTANTS — defined BEFORE return
+  // ═══════════════════════════════════════════════════════
+  const thS = { padding: '12px 16px', fontSize: '11px', fontWeight: 700, color: '#8b8fa3', textTransform: 'uppercase', letterSpacing: '.5px', textAlign: 'left', borderBottom: '1px solid #eee', background: '#fafbff', whiteSpace: 'nowrap' };
+  const tdS = { padding: '12px 16px', fontSize: '13px', color: '#333', borderBottom: '1px solid #f4f5f8', verticalAlign: 'middle' };
+  const lblS = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#555', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.3px' };
+  const inpS = { width: '100%', padding: '9px 14px', border: '1px solid #e2e5f1', borderRadius: '10px', fontSize: '13px', outline: 'none', background: '#fff', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color .15s, box-shadow .15s' };
+  const uploadZoneS = { border: '2px dashed #d4d8e8', borderRadius: '14px', padding: '32px 20px', textAlign: 'center', cursor: 'pointer', transition: 'all .2s', background: '#fafbff' };
+  const overlayS = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn .2s ease' };
+  const closeBtnS = { width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #e2e5f1', background: '#fff', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s', color: '#999' };
+  const cancelBtnS = { padding: '10px 22px', borderRadius: '10px', border: '1px solid #e2e5f1', background: '#fff', color: '#555', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' };
+  const submitBtnS = { padding: '10px 26px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#6c5ce7,#a855f7)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', boxShadow: '0 4px 15px rgba(108,92,231,.35)' };
+  const delBtnS = { padding: '10px 26px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', boxShadow: '0 4px 15px rgba(239,68,68,.35)' };
+
+  function modalSize(size) {
+    const w = size === 'sm' ? '420px' : '720px';
+    return { width: w, maxWidth: '95vw', background: '#fff', borderRadius: '18px', boxShadow: '0 25px 60px rgba(0,0,0,.2)', animation: 'slideUp .3s cubic-bezier(.16,1,.3,1) forwards' };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  ✅ ALL HELPER FUNCTIONS — defined BEFORE return
+  // ═══════════════════════════════════════════════════════
+
+  /** setForm — clear pSubCategory when pCategory changes, auto-open subcategory */
+  function setForm(field, value) {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'pCategory') {
+      setFormData(prev => ({ ...prev, pSubCategory: '' }));
+      if (value && subCategoriesMap[value]?.length > 0) {
+        setTimeout(() => {
+          if (subCatRef.current) {
+            try { subCatRef.current.focus(); } catch (_) {}
+          }
+        }, 100);
+      }
+    }
+  }
+
+  /** Reusable form field */
+  function Field({ lbl, val, set, ph, type = 'text', req = false, disabled = false }) {
+    return (
+      <div>
+        <label style={lblS}>{lbl}</label>
+        <input className="fi" type={type} style={inpS} placeholder={ph} value={val} onChange={e => set(e.target.value)} required={req} disabled={disabled} />
+      </div>
+    );
+  }
+
+  /** Sort icon for table headers */
+  function sortIcn(field) {
+    if (sortField !== field) return <span style={{ color: '#ccc', fontSize: '10px' }}>⇅</span>;
+    return <span style={{ color: '#6c5ce7', fontSize: '11px' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  }
+
+  /** Status badge style */
+  function badge(status) {
+    const s = (status || '').toLowerCase();
+    if (s.includes('active')) return { background: '#ecfdf5', color: '#059669', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, display: 'inline-block' };
+    if (s.includes('low')) return { background: '#fffbeb', color: '#d97706', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, display: 'inline-block' };
+    if (s.includes('out')) return { background: '#fef2f2', color: '#dc2626', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, display: 'inline-block' };
+    return { background: '#f4f6fb', color: '#555', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, display: 'inline-block' };
+  }
+
+  /** Pagination button style */
+  function pgBtn(active) {
+    return {
+      padding: '6px 12px', borderRadius: '8px', border: '1px solid', fontSize: '12px', fontWeight: 600,
+      cursor: 'pointer', transition: 'all .15s', fontFamily: 'inherit', outline: 'none',
+      background: active ? '#6c5ce7' : '#fff', color: active ? '#fff' : '#555', borderColor: active ? '#6c5ce7' : '#e2e5f1',
+    };
+  }
 
   // ═══════════════════════════════════════════════════════
   //  TOAST
@@ -117,20 +182,16 @@ const Products = () => {
     fd.append('pShortDescription', formData.pShortDescription);
     fd.append('pLongDescription', formData.pLongDescription);
     fd.append('pPrice', formData.pPrice);
-    fd.append('pCategory', formData.pCategory);   // ✅ sends _id
+    fd.append('pCategory', formData.pCategory);
     fd.append('pSubCategory', formData.pSubCategory);
     fd.append('pStock', formData.pStock);
     fd.append('pReviews', formData.pReviews);
     fd.append('pDiscount', formData.pDiscount);
-
     uploadedImages.forEach(img => {
       if (img.file instanceof File) fd.append('pImages', img.file);
     });
-
     if (modal === 'edit') {
-      const existingUrls = uploadedImages
-        .filter(img => !img.file && img.preview)
-        .map(img => img.preview);
+      const existingUrls = uploadedImages.filter(img => !img.file && img.preview).map(img => img.preview);
       if (existingUrls.length > 0) fd.append('existingImages', JSON.stringify(existingUrls));
     }
     return fd;
@@ -139,7 +200,6 @@ const Products = () => {
   // ── FILTERING, SORTING, PAGINATION ─────────────────────
   let filtered = products.filter(p => {
     const ms = p.pName?.toLowerCase().includes(searchTerm.toLowerCase()) || p.pShortDescription?.toLowerCase().includes(searchTerm.toLowerCase());
-    // ✅ Filter matches by _id (since both filterCategory and p.pCategory are _id)
     const mc = filterCategory === 'All' || p.pCategory === filterCategory;
     return ms && mc;
   });
@@ -190,13 +250,11 @@ const Products = () => {
 
   const openEdit = (p) => {
     setSelectedProduct(p);
-    // ✅ Resolve pCategory to _id (handles old data stored as cname string)
     const catId = resolveCatId(p.pCategory);
     setFormData({
       pName: p.pName || '', pShortDescription: p.pShortDescription || '',
       pLongDescription: p.pLongDescription || '', pPrice: p.pPrice || '',
-      pCategory: catId,
-      pSubCategory: p.pSubCategory || '',
+      pCategory: catId, pSubCategory: p.pSubCategory || '',
       pStock: p.pStock || '', pReviews: p.pReviews || '', pDiscount: p.pDiscount || ''
     });
     if (p.pImages?.length > 0) {
@@ -226,18 +284,12 @@ const Products = () => {
         const status = Number(formData.pStock) === 0 ? 'Out of Stock' : Number(formData.pStock) < 100 ? 'Low Stock' : 'Active';
         const mapped = {
           id: np.id || np._id || Date.now(),
-          pName: np.pName || formData.pName,
-          pShortDescription: np.pShortDescription || formData.pShortDescription,
-          pLongDescription: np.pLongDescription || formData.pLongDescription,
-          pPrice: Number(np.pPrice || formData.pPrice),
-          pCategory: np.pCategory || formData.pCategory,
-          pSubCategory: np.pSubCategory || formData.pSubCategory,
-          pStock: Number(np.pStock || formData.pStock),
-          pReviews: Number(np.pReviews || formData.pReviews),
-          pDiscount: Number(np.pDiscount || formData.pDiscount),
-          pImages: np.pImages || uploadedImages,
-          pStatus: np.pStatus || status,
-          pDate: np.pDate || np.createdAt || new Date().toISOString().split('T')[0]
+          pName: np.pName || formData.pName, pShortDescription: np.pShortDescription || formData.pShortDescription,
+          pLongDescription: np.pLongDescription || formData.pLongDescription, pPrice: Number(np.pPrice || formData.pPrice),
+          pCategory: np.pCategory || formData.pCategory, pSubCategory: np.pSubCategory || formData.pSubCategory,
+          pStock: Number(np.pStock || formData.pStock), pReviews: Number(np.pReviews || formData.pReviews),
+          pDiscount: Number(np.pDiscount || formData.pDiscount), pImages: np.pImages || uploadedImages,
+          pStatus: np.pStatus || status, pDate: np.pDate || np.createdAt || new Date().toISOString().split('T')[0]
         };
         setProducts(prev => [mapped, ...prev]);
         showToast(`"${mapped.pName}" added successfully!`, 'success');
@@ -248,16 +300,11 @@ const Products = () => {
         const status = Number(formData.pStock) === 0 ? 'Out of Stock' : Number(formData.pStock) < 100 ? 'Low Stock' : 'Active';
         const mapped = {
           ...selectedProduct,
-          pName: up.pName || formData.pName,
-          pShortDescription: up.pShortDescription || formData.pShortDescription,
-          pLongDescription: up.pLongDescription || formData.pLongDescription,
-          pPrice: Number(up.pPrice || formData.pPrice),
-          pCategory: up.pCategory || formData.pCategory,
-          pSubCategory: up.pSubCategory || formData.pSubCategory,
-          pStock: Number(up.pStock || formData.pStock),
-          pReviews: Number(up.pReviews || formData.pReviews),
-          pDiscount: Number(up.pDiscount || formData.pDiscount),
-          pImages: up.pImages || uploadedImages,
+          pName: up.pName || formData.pName, pShortDescription: up.pShortDescription || formData.pShortDescription,
+          pLongDescription: up.pLongDescription || formData.pLongDescription, pPrice: Number(up.pPrice || formData.pPrice),
+          pCategory: up.pCategory || formData.pCategory, pSubCategory: up.pSubCategory || formData.pSubCategory,
+          pStock: Number(up.pStock || formData.pStock), pReviews: Number(up.pReviews || formData.pReviews),
+          pDiscount: Number(up.pDiscount || formData.pDiscount), pImages: up.pImages || uploadedImages,
           pStatus: up.pStatus || status
         };
         setProducts(prev => prev.map(p => (p.id || p._id) === productId ? mapped : p));
@@ -292,7 +339,7 @@ const Products = () => {
   const handleSort = (f) => { if (sortField === f) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortField(f); setSortDir('asc'); } };
 
   // ═══════════════════════════════════════════════════════
-  //  RENDER
+  //  ✅ RENDER — now all references (thS, tdS, etc.) exist
   // ═══════════════════════════════════════════════════════
   return (
     <>
@@ -322,7 +369,7 @@ const Products = () => {
         .skeleton { background: linear-gradient(90deg, #f0f1f5 25%, #e8eaf0 50%, #f0f1f5 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
       `}</style>
 
-      {/* ✅ TOAST */}
+      {/* TOAST */}
       {toast && (
         <div style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 9999 }}>
           <div className="toast-enter" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 20px', borderRadius: '12px', background: toast.type === 'error' ? '#fef2f2' : '#ecfdf5', border: `1px solid ${toast.type === 'error' ? '#fecaca' : '#a7f3d0'}`, boxShadow: '0 10px 40px rgba(0,0,0,.12)', minWidth: '280px', maxWidth: '420px', fontFamily: 'inherit' }}>
@@ -348,7 +395,7 @@ const Products = () => {
             </div>
             <div>
               <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#1a1a3e', margin: 0 }}>Products</h1>
-              <p style={{ fontSize: '13px', color: '#8b8fa3', margin: 0 }}>{products.length} total • Showing 10 per page</p>
+              <p style={{ fontSize: '13px', color: '#8b8fa3', margin: 0 }}>{products.length} total • Showing {perPage} per page</p>
             </div>
           </div>
           <button className="ab" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 22px', background: 'linear-gradient(135deg,#6c5ce7,#a855f7)', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 15px rgba(108,92,231,.35)', transition: 'all .2s', fontFamily: 'inherit' }} onClick={openAdd}>
@@ -363,7 +410,6 @@ const Products = () => {
             <svg style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', color: '#aaa' }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input className="fi" style={{ width: '100%', padding: '9px 14px 9px 38px', border: '1px solid #e2e5f1', borderRadius: '10px', fontSize: '13px', outline: 'none', background: '#fff', fontFamily: 'inherit', boxSizing: 'border-box' }} placeholder="Search products..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
           </div>
-          {/* ✅ FILTER — value=_id, display=cname */}
           <select style={{ padding: '9px 14px', border: '1px solid #e2e5f1', borderRadius: '10px', fontSize: '13px', outline: 'none', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#555' }} value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1); }}>
             <option value="All">All Categories</option>
             {categories.map(c => <option key={c._id} value={c._id}>{c.cname}</option>)}
@@ -437,7 +483,6 @@ const Products = () => {
                           <div style={{ fontWeight: 700, color: '#1a1a3e' }}>₹{Number(p.pPrice).toLocaleString()}</div>
                           {p.pDiscount > 0 && <div style={{ fontSize: '11px', color: '#bbb', textDecoration: 'line-through' }}>₹{Math.round(Number(p.pPrice) / (1 - Number(p.pDiscount) / 100)).toLocaleString()}</div>}
                         </td>
-                        {/* ✅ TABLE DISPLAY — resolve _id to cname */}
                         <td style={tdS}>
                           <div style={{ fontSize: '12px', color: '#555', fontWeight: 500 }}>{resolveCatName(p.pCategory)}</div>
                           <div style={{ fontSize: '11px', color: '#aaa' }}>{p.pSubCategory}</div>
@@ -486,10 +531,10 @@ const Products = () => {
           MODALS
           ═══════════════════════════════════════════════════ */}
 
-      {/* ── ADD / EDIT MODAL ─────────────────────────────── */}
+      {/* ADD / EDIT MODAL */}
       {(modal === 'add' || modal === 'edit') && (
         <div style={overlayS} onClick={e => e.target === e.currentTarget && !submitLoading && setModal(null)}>
-          <div style={{ ...modalS('lg'), maxHeight: '92vh', overflow: 'auto' }}>
+          <div style={{ ...modalSize('lg'), maxHeight: '92vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 26px 0', position: 'sticky', top: 0, background: '#fff', zIndex: 10, borderRadius: '18px 18px 0 0' }}>
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a3e', margin: 0 }}>{modal === 'add' ? '➕ Add New Product' : '✏️ Edit Product'}</h2>
               <button className="cb" style={closeBtnS} onClick={() => !submitLoading && setModal(null)} disabled={submitLoading}>✕</button>
@@ -532,12 +577,12 @@ const Products = () => {
                   <Field lbl="Product Name *" val={formData.pName} set={v => setForm('pName', v)} ph="Enter product name" req disabled={submitLoading} />
                   <Field lbl="Price (₹) *" type="number" val={formData.pPrice} set={v => setForm('pPrice', v)} ph="0.00" req disabled={submitLoading} />
 
-                  {/* ✅ CATEGORY DROPDOWN — value=_id, display=cname */}
+                  {/* CATEGORY DROPDOWN — value=_id, display=cname */}
                   <div>
                     <label style={lblS}>Category *</label>
                     <select className="fi" style={{ ...inpS, cursor: 'pointer' }} value={formData.pCategory} onChange={e => setForm('pCategory', e.target.value)} required disabled={submitLoading}>
                       <option value="">Select category</option>
-                      {categories.map(c => <option key={c._id} value={c._id}>{c.cname}</option>)}
+                      {categories.map(c => <option key={c._id} value={c._id}>{c._id}</option>)}
                     </select>
                     {formData.pCategory && (
                       <div style={{ fontSize: '10px', color: '#6c5ce7', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -547,7 +592,7 @@ const Products = () => {
                     )}
                   </div>
 
-                  {/* ✅ SUBCATEGORY DROPDOWN — lookup by _id, show name */}
+                  {/* SUBCATEGORY DROPDOWN — lookup by _id, show name */}
                   <div>
                     <label style={lblS}>
                       Sub Category
@@ -582,10 +627,10 @@ const Products = () => {
         </div>
       )}
 
-      {/* ── VIEW MODAL ──────────────────────────────────── */}
+      {/* VIEW MODAL */}
       {modal === 'view' && selectedProduct && (
         <div style={overlayS} onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div style={{ ...modalS('lg'), maxHeight: '90vh', overflow: 'auto' }}>
+          <div style={{ ...modalSize('lg'), maxHeight: '90vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 26px 0' }}>
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a3e', margin: 0 }}>👁️ Product Details</h2>
               <button className="cb" style={closeBtnS} onClick={() => setModal(null)}>✕</button>
@@ -603,7 +648,6 @@ const Products = () => {
                 ['Short Description', selectedProduct.pShortDescription],
                 ['Long Description', selectedProduct.pLongDescription],
                 ['Price', <>₹{Number(selectedProduct.pPrice).toLocaleString()} {selectedProduct.pDiscount > 0 && <span style={{ marginLeft: '10px', fontSize: '12px', color: '#bbb', textDecoration: 'line-through' }}>₹{Math.round(Number(selectedProduct.pPrice) / (1 - Number(selectedProduct.pDiscount) / 100)).toLocaleString()}</span>}</>],
-                /* ✅ VIEW — resolve _id to cname */
                 ['Category', <>{resolveCatName(selectedProduct.pCategory)} <span style={{ color: '#ccc' }}>→</span> {selectedProduct.pSubCategory}</>],
                 ['Stock', <span style={{ fontWeight: 600, color: selectedProduct.pStock === 0 ? '#dc2626' : selectedProduct.pStock < 100 ? '#d97706' : '#059669' }}>{selectedProduct.pStock} units</span>],
                 ['Reviews', <><span style={{ color: '#f59e0b' }}>{'★'.repeat(Math.floor(Number(selectedProduct.pReviews) || 0))}{'☆'.repeat(5 - Math.ceil(Number(selectedProduct.pReviews) || 0))}</span> {selectedProduct.pReviews}/5</>],
@@ -624,17 +668,17 @@ const Products = () => {
         </div>
       )}
 
-      {/* ── DELETE MODAL ─────────────────────────────────── */}
+      {/* DELETE MODAL */}
       {modal === 'delete' && selectedProduct && (
         <div style={overlayS} onClick={e => e.target === e.currentTarget && !deleteLoading && setModal(null)}>
-          <div style={modalS('sm')}>
+          <div style={modalSize('sm')}>
             <div style={{ padding: '36px 28px 28px', textAlign: 'center' }}>
               <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
                 {deleteLoading ? <div style={{ animation: 'spin 1s linear infinite' }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg></div> : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>}
               </div>
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a3e', margin: '0 0 8px' }}>Delete Product?</h2>
               <p style={{ fontSize: '13px', color: '#8b8fa3', margin: '0 0 4px' }}>This action cannot be undone.</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#555', margin: '0 0 22px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid '#fecaca' }}>"{selectedProduct.pName}"</p>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#555', margin: '0 0 22px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>"{selectedProduct.pName}"</p>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                 <button style={cancelBtnS} onClick={() => setModal(null)} disabled={deleteLoading}>Cancel</button>
                 <button className={`db ${deleteLoading ? 'btn-disabled' : ''}`} style={{ ...delBtnS, opacity: deleteLoading ? 0.7 : 1 }} onClick={handleDelete} disabled={deleteLoading}>
@@ -647,41 +691,6 @@ const Products = () => {
       )}
     </>
   );
-
-  // ── LOCAL HELPERS ──────────────────────────────────────
-  function setForm(f, v) {
-    setFormData(p => ({ ...p, [f]: v }));
-    if (f === 'pCategory') {
-      setFormData(p => ({ ...p, pSubCategory: '' }));
-      // ✅ v is the _id — use it to look up subcategories
-      if (v && subCategoriesMap[v]?.length > 0) {
-        setTimeout(() => {
-          if (subCatRef.current) {
-            subCatRef.current.focus();
-            subCatRef.current.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-            subCatRef.current.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-          }
-        }, 60);
-      }
-    }
-  }
-  function sortIcn(f) { if (sortField !== f) return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2"><path d="M7 15l5 5 5-5M7 9l5-5 5-5"/></svg>; return sortDir === 'asc' ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6c5ce7" strokeWidth="2.5"><path d="M18 15l-6-6-6 6"/></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6c5ce7" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>; }
 };
-
-const Field = ({ lbl, val, set, ph, type = 'text', req, disabled }) => (<div><label style={lblS}>{lbl}</label><input className="fi" type={type} style={inpS} placeholder={ph} value={val} onChange={e => set(e.target.value)} required={req} disabled={disabled} /></div>);
-
-const thS = { padding: '12px 16px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: '#8b8fa3', textTransform: 'uppercase', letterSpacing: '1px', background: '#fafbfe', borderBottom: '1px solid #eee', whiteSpace: 'nowrap' };
-const tdS = { padding: '12px 16px', fontSize: '13px', color: '#333', borderBottom: '1px solid #f4f5f8', verticalAlign: 'middle' };
-const lblS = { display: 'block', fontSize: '11px', fontWeight: 600, color: '#666', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '.5px' };
-const inpS = { width: '100%', padding: '9px 13px', border: '1px solid #e2e5f1', borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: '#fafbfe', transition: 'all .2s' };
-const overlayS = { position: 'fixed', inset: 0, background: 'rgba(15,15,35,.55)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'fadeIn .2s ease' };
-const modalS = (s) => ({ background: '#fff', borderRadius: '18px', boxShadow: '0 25px 60px rgba(0,0,0,.2)', width: s === 'sm' ? '400px' : '740px', maxWidth: '100%', animation: 'slideUp .3s cubic-bezier(.16,1,.3,1)' });
-const closeBtnS = { width: '34px', height: '34px', borderRadius: '10px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: '#999', transition: 'all .15s' };
-const cancelBtnS = { padding: '10px 28px', background: '#f4f5f8', color: '#555', border: '1px solid #e2e5f1', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' };
-const submitBtnS = { padding: '10px 28px', background: 'linear-gradient(135deg,#6c5ce7,#a855f7)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 15px rgba(108,92,231,.35)', transition: 'all .2s', fontFamily: 'inherit' };
-const delBtnS = { padding: '10px 28px', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239,68,68,.35)', transition: 'all .2s', fontFamily: 'inherit' };
-const uploadZoneS = { border: '2px dashed #d1d5f0', borderRadius: '14px', padding: '28px', textAlign: 'center', cursor: 'pointer', transition: 'all .2s', background: '#fafbfe' };
-const pgBtn = (a) => ({ width: '34px', height: '34px', borderRadius: '9px', border: a ? 'none' : '1px solid #e2e5f1', background: a ? 'linear-gradient(135deg,#6c5ce7,#a855f7)' : '#fff', color: a ? '#fff' : '#666', cursor: 'pointer', fontSize: '13px', fontWeight: a ? 600 : 400, transition: 'all .15s', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
-const badge = (t) => { const m = { 'Active': { bg: '#ecfdf5', c: '#059669', b: '#a7f3d0' }, 'Low Stock': { bg: '#fffbeb', c: '#d97706', b: '#fde68a' }, 'Out of Stock': { bg: '#fef2f2', c: '#dc2626', b: '#fecaca' } }; const s = m[t] || m['Active']; return { display: 'inline-block', padding: '3px 11px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: s.bg, color: s.c, border: `1px solid ${s.b}` }; };
 
 export default Products;

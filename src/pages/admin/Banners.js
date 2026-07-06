@@ -1,13 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getBanners } from "../../api/adminApi";
+import { postBanner, getBanners } from "../../api/adminApi";
 
-// ═══════════════════════════════════════════════════════════════
-//  HELPER: Handles both API URLs (string) and local uploads (object)
-// ═══════════════════════════════════════════════════════════════
 const getImageSrc = (logo) => {
   if (!logo) return null;
-  if (typeof logo === 'string') return logo; // API URL
-  if (logo?.preview) return logo.preview;   // Locally uploaded File
+  if (typeof logo === 'string') return logo;
+  if (logo?.preview) return logo.preview;   
   return null;
 };
 
@@ -32,7 +29,6 @@ const Banners = () => {
   const fileInputRef = useRef(null);
 
   // ── API FETCH ON MOUNT ─────────────────────────────────
-  useEffect(() => {
     const fetchBanners = async () => {
       try {
         setLoading(true);
@@ -41,12 +37,12 @@ const Banners = () => {
         // Handle API response (adjust mapping based on your actual API response structure)
         const data = response.data || response;
         const formattedData = data.map(item => ({
-          id: item.id || item._id,
-          bName: item.title || item.name || item.bName || 'Untitled',
-          bDescription: item.description || item.bDescription || '',
-          bLogo: item.image || item.logo || item.bLogo || null, // Can be string URL or null
-          bStatus: item.status || item.bStatus || 'Active',
-          bDate: item.createdAt || item.bDate || new Date().toISOString().split('T')[0]
+          id: item._id,
+          bName: item.name,
+          bDescription: item.description,
+          bLogo: item.image,
+          bStatus: item.status,
+          createdAt: item.createdAt,
         }));
         
         setBanners(formattedData);
@@ -57,8 +53,15 @@ const Banners = () => {
       }
     };
 
+    const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+
+    fetchedRef.current = true;
     fetchBanners();
   }, []);
+
 
   // ── FILTERING & PAGINATION ─────────────────────────────
   const filtered = banners.filter(b => b.bName.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -112,15 +115,32 @@ const Banners = () => {
 
   const openDelete = (banner) => { setSelectedBanner(banner); setDeleteLoading(false); setModal('delete'); };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (modal === 'add') {
-      setBanners([{ ...formData, id: Date.now(), bLogo: uploadedLogo, bStatus: 'Active', bDate: new Date().toISOString().split('T')[0] }, ...banners]);
-    } else {
-      setBanners(banners.map(b => b.id === selectedBanner.id ? { ...b, ...formData, bLogo: uploadedLogo || b.bLogo } : b));
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const form = new FormData();
+
+    form.append("name", formData.bName);
+    form.append("description", formData.bDescription);
+
+    if (uploadedLogo?.file) {
+      form.append("image", uploadedLogo.file);
     }
+    const res = await postBanner(form);
+
+    console.log(res);
+
+    await fetchBanners();
+
+
     setModal(null);
-  };
+
+  } catch (error) {
+    console.error(error);
+    alert(error.response?.data?.message || "Failed to add banner");
+  }
+};
 
   const handleDelete = () => {
     setDeleteLoading(true);
@@ -187,7 +207,6 @@ const Banners = () => {
                   <th style={thS}>Image</th>
                   <th style={thS}>Banner Title</th>
                   <th style={thS}>Description</th>
-                  <th style={thS}>Status</th>
                   <th style={{ ...thS, textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
@@ -210,7 +229,6 @@ const Banners = () => {
                   <th style={thS}>Image</th>
                   <th style={thS}>Banner Title</th>
                   <th style={thS}>Description</th>
-                  <th style={thS}>Status</th>
                   <th style={{ ...thS, textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
@@ -222,12 +240,11 @@ const Banners = () => {
                         {getImageSrc(b.bLogo) ? 
                           <img src={getImageSrc(b.bLogo)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5f0" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                        }
+                        } 
                       </div>
                     </td>
                     <td style={{ ...tdS, fontWeight: 600, color: '#1a1a3e' }}>{b.bName}</td>
                     <td style={{ ...tdS, color: '#666', fontSize: '12.5px', maxWidth: '400px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.bDescription}</td>
-                    <td style={tdS}><span style={badge(b.bStatus)}>{b.bStatus}</span></td>
                     <td style={{ ...tdS, textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                         <button className="actbtn" onClick={() => openEdit(b)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500, background: '#f0fdf4', color: '#22c55e', transition: 'all .15s', display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
