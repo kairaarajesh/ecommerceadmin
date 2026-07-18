@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Routes, Route } from 'react-router-dom';
-import Dashboard from '../../pages/admin/Dashboard';
+// import Dashboard from '../../pages/admin/Dashboard';
 import Reports from '../../pages/admin/Reports';
 
   // Simple auth check

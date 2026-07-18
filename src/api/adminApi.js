@@ -66,80 +66,38 @@ export const postBanner = async (bannerData) => {
   } 
 };
 
-// export const updateBanner = async (id, updatedData) => {
-//   try {
-//     const response = await axiosInstance.put(`/api/banner/update/${id}`, updatedData);
-//     return response.data;
-//   } catch (error) {
-//     const message = error.response?.data?.message || 'Failed to update banner';
-//     throw new Error(message);
-//   }
-// };
-
-// export const deleteBanner = async (id, deleteData) => {
-//   try {
-//     const response = await axiosInstance.delete(`/api/banner/delete/${id}`, deleteData);
-//     return response.data;
-//   }
-//   catch (error) {
-//     const message = error.response?.data?.message || 'Failed to delete banner';
-//     throw new Error(message);
-//   }
-// };
-
-export const postProduct = async (productData) => {
+export const updateBanner = async (id, updatedData) => {
   try {
-    const response = await axiosInstance.post('/api/product/create', productData);
-      return response.data;
-    }catch (error) {
-    const message = error.response?.data?.message || 'Failed to create product';
+    const response = await axiosInstance.put(`/api/banner/update/${id}`, updatedData);
+    return response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || 'Failed to update banner';
     throw new Error(message);
   }
 };
 
-export const getProducts = async () => {
+export const deleteBanner = async (id, deleteData) => {
   try {
-    const response = await axiosInstance.get('/api/product/getall');  
-    return response.data;
-  } catch (error) {
-    const message = error.response?.data?.message || 'Failed to fetch products';
-    throw new Error(message);
-  }   
-};
-
-export const updateProduct = async (id, updatedData) => {
-  try {
-    const response = await axiosInstance.put(`/api/product/update/${id}`, updatedData);
-    return response.data;
-  } catch (error) {
-    const message = error.response?.data?.message || 'Failed to update product';
-    throw new Error(message);
-  } 
-};
-
-export const deleteProduct = async (id, deleteData) => {
-  try {
-    const response = await axiosInstance.delete(`/api/product/delete/${id}`, deleteData);
+    const response = await axiosInstance.delete(`/api/banner/delete/${id}`, deleteData);
     return response.data;
   }
   catch (error) {
-    const message = error.response?.data?.message || 'Failed to delete product';
+    const message = error.response?.data?.message || 'Failed to delete banner';
     throw new Error(message);
   }
 };
 
-export const getCategories = async () => {
+export const searchBanners = async (query) => {
   try {
-    const response = await axiosInstance.get('/api/category/all');
+    const response = await axiosInstance.get(`/api/banner/search?query=${encodeURIComponent(query)}`);
     return response.data;
-  }
-  catch (error) {
-    const message = error.response?.data?.message || 'Failed to fetch categories';
+  } catch (error) {
+    const message = error.response?.data?.message || 'Failed to search banners';
     throw new Error(message);
   }
 };
 
-// export const postCategory = async (categoryData) => {
-//   try{
-//     const respone = await axios.post('/api/ca)
-//   }
+
+
+
+

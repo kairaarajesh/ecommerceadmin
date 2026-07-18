@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { postBanner, getBanners } from "../../api/adminApi";
+import { postBanner, getBanners, updateBanner, deleteBanner } from "../../api/adminApi";
 
 const getImageSrc = (logo) => {
   if (!logo) return null;
@@ -13,12 +13,13 @@ const getImageSrc = (logo) => {
 // ═══════════════════════════════════════════════════════════════
 const Banners = () => {
   const [banners, setBanners] = useState([]);
-  const [loading, setLoading] = useState(true); // Added loading state
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); 
   const [selectedBanner, setSelectedBanner] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false); // Add submit loading state
   const perPage = 10;
 
   const [formData, setFormData] = useState({ bName: '', bDescription: '' });
@@ -29,39 +30,37 @@ const Banners = () => {
   const fileInputRef = useRef(null);
 
   // ── API FETCH ON MOUNT ─────────────────────────────────
-    const fetchBanners = async () => {
-      try {
-        setLoading(true);
-        const response = await getBanners();
-        
-        // Handle API response (adjust mapping based on your actual API response structure)
-        const data = response.data || response;
-        const formattedData = data.map(item => ({
-          id: item._id,
-          bName: item.name,
-          bDescription: item.description,
-          bLogo: item.image,
-          bStatus: item.status,
-          createdAt: item.createdAt,
-        }));
-        
-        setBanners(formattedData);
-      } catch (error) {
-        console.error("Failed to fetch banners:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchBanners = async () => {
+    try {
+      setLoading(true);
+      const response = await getBanners();
+      
+      // Handle API response - adjust mapping based on your actual API response structure
+      const data = response.data || response;
+      const formattedData = data.map(item => ({
+        id: item._id,
+        bName: item.name,
+        bDescription: item.description,
+        bLogo: item.image,
+        bStatus: item.status,
+        createdAt: item.createdAt,
+      }));
+      
+      setBanners(formattedData);
+    } catch (error) {
+      console.error("Failed to fetch banners:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchedRef = useRef(false);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
     if (fetchedRef.current) return;
-
     fetchedRef.current = true;
     fetchBanners();
   }, []);
-
 
   // ── FILTERING & PAGINATION ─────────────────────────────
   const filtered = banners.filter(b => b.bName.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -91,60 +90,123 @@ const Banners = () => {
     }, 200);
   };
 
-  const handleDrag = (e) => { e.preventDefault(); e.stopPropagation(); if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true); else if (e.type === 'dragleave') setDragActive(false); };
-  const handleDrop = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]); };
+  const handleDrag = (e) => { 
+    e.preventDefault(); 
+    e.stopPropagation(); 
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true); 
+    else if (e.type === 'dragleave') setDragActive(false); 
+  };
+  
+  const handleDrop = (e) => { 
+    e.preventDefault(); 
+    e.stopPropagation(); 
+    setDragActive(false); 
+    if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]); 
+  };
 
   // ── CRUD HANDLERS ──────────────────────────────────────
-  const resetForm = () => { setFormData({ bName: '', bDescription: '' }); setUploadedLogo(null); setUploadProgress(0); setIsUploading(false); };
+  const resetForm = () => { 
+    setFormData({ bName: '', bDescription: '' }); 
+    setUploadedLogo(null); 
+    setUploadProgress(0); 
+    setIsUploading(false); 
+  };
 
   const openAdd = () => { resetForm(); setModal('add'); };
   
   const openEdit = (banner) => {
-    setSelectedBanner(banner);
     setFormData({ bName: banner.bName, bDescription: banner.bDescription });
     
-    // If API returned a string URL, convert it to object structure for the upload zone to display it
     if (banner.bLogo && typeof banner.bLogo === 'string') {
       setUploadedLogo({ preview: banner.bLogo, name: 'Existing Banner' });
     } else {
       setUploadedLogo(banner.bLogo); 
     }
-    setUploadProgress(100); setIsUploading(false);
+    // setUploadProgress(100); 
+   setSelectedBanner(banner);
+    setIsUploading(false);
     setModal('edit');
   };
 
-  const openDelete = (banner) => { setSelectedBanner(banner); setDeleteLoading(false); setModal('delete'); };
+  const openDelete = (banner) => { 
+    setSelectedBanner(banner); 
+    setDeleteLoading(false); 
+    setModal('delete'); 
+  };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
+  // ── ADD BANNER HANDLER ─────────────────────────────────
+  const handleAddSubmit = async (e) => {
+    e.preventDefault();
 
-  try {
-    const form = new FormData();
-
-    form.append("name", formData.bName);
-    form.append("description", formData.bDescription);
-
-    if (uploadedLogo?.file) {
-      form.append("image", uploadedLogo.file);
+    if (!formData.bName.trim()) {
+      alert("Please enter banner title");
+      return;
     }
-    const res = await postBanner(form);
 
-    console.log(res);
+    try {
+      setSubmitLoading(true);
+      const form = new FormData();
+      form.append("name", formData.bName);
+      form.append("description", formData.bDescription);
 
-    await fetchBanners();
+      if (uploadedLogo?.file) {
+        form.append("image", uploadedLogo.file);
+      }
 
+      await postBanner(form);
+      await fetchBanners();
+      setModal(null);
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to add banner");
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
-    setModal(null);
+  // ── EDIT BANNER HANDLER ────────────────────────────────
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
 
-  } catch (error) {
-    console.error(error);
-    alert(error.response?.data?.message || "Failed to add banner");
-  }
-};
+    if (!formData.bName.trim()) {
+      alert("Please enter banner title");
+      return;
+    }
 
-  const handleDelete = () => {
-    setDeleteLoading(true);
-    setTimeout(() => { setBanners(banners.filter(b => b.id !== selectedBanner.id)); setModal(null); }, 600);
+    try {
+      setSubmitLoading(true);
+      const form = new FormData();
+      form.append("name", formData.bName);
+      form.append("description", formData.bDescription);
+      
+      if (uploadedLogo?.file) {
+        form.append("image", uploadedLogo.file);
+      }
+
+      await updateBanner(selectedBanner.id, form);
+      await fetchBanners();
+      setModal(null);
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || error.message || "Failed to update banner");
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // ── DELETE BANNER HANDLER (FIXED - NOW CALLS API) ─────
+  const handleDelete = async () => {
+    setDeleteLoading(true); 
+    try {
+      await deleteBanner(selectedBanner.id);
+      await fetchBanners();
+      setModal(null);
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert(error.response?.data?.message || "Failed to delete banner");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // ═══════════════════════════════════════════════════════
@@ -167,6 +229,7 @@ const Banners = () => {
         .actbtn:hover { transform: translateY(-1px); filter: brightness(.95) }
         .upload-shimmer { background: linear-gradient(90deg, #f0ecff 25%, #e0d8ff 50%, #f0ecff 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite }
         .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+        .btn-disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
       `}</style>
 
       <div style={{ padding: '28px 32px', fontFamily: "'Inter',-apple-system,sans-serif" }}>
@@ -216,7 +279,6 @@ const Banners = () => {
                     <td style={tdS}><div className="skeleton" style={{ width: '80px', height: '45px' }} /></td>
                     <td style={tdS}><div className="skeleton" style={{ width: '60%', height: '14px' }} /></td>
                     <td style={tdS}><div className="skeleton" style={{ width: '90%', height: '14px' }} /></td>
-                    <td style={tdS}><div className="skeleton" style={{ width: '50px', height: '22px', borderRadius: '20px' }} /></td>
                     <td style={tdS}><div className="skeleton" style={{ width: '100px', height: '30px', margin: '0 auto' }} /></td>
                   </tr>
                 ))}
@@ -284,19 +346,30 @@ const Banners = () => {
 
       {/* ── ADD / EDIT MODAL ─────────────────────────────── */}
       {(modal === 'add' || modal === 'edit') && (
-        <div style={overlayS} onClick={e => e.target === e.currentTarget && setModal(null)}>
+        <div style={overlayS} onClick={e => e.target === e.currentTarget && !submitLoading && setModal(null)}>
           <div style={modalS('sm')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 26px 0' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a3e', margin: 0 }}>{modal === 'add' ? '➕ Add New Banner' : '✏️ Edit Banner'}</h2>
-              <button className="cb" style={closeBtnS} onClick={() => setModal(null)}>✕</button>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a3e', margin: 0 }}>
+                {modal === 'add' ? '➕ Add New Banner' : '✏️ Edit Banner'}
+              </h2>
+              <button className="cb" style={closeBtnS} onClick={() => setModal(null)} disabled={submitLoading}>✕</button>
             </div>
-            <form onSubmit={handleSubmit}>
+            
+            {/* FIXED: Conditionally call correct handler based on modal type */}
+            <form onSubmit={modal === 'add' ? handleAddSubmit : handleEditSubmit}>
               <div style={{ padding: '22px 26px 26px' }}>
                 
                 {/* IMAGE UPLOAD */}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={lblS}>Banner Image</label>
-                  <div style={dragActive ? { ...uploadZoneS, border: '2px dashed #6c5ce7', background: '#f5f3ff' } : uploadZoneS} onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}>
+                  <div 
+                    style={dragActive ? { ...uploadZoneS, border: '2px dashed #6c5ce7', background: '#f5f3ff' } : uploadZoneS} 
+                    onDragEnter={handleDrag} 
+                    onDragLeave={handleDrag} 
+                    onDragOver={handleDrag} 
+                    onDrop={handleDrop} 
+                    onClick={() => !submitLoading && fileInputRef.current?.click()}
+                  >
                     <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
                     
                     {isUploading ? (
@@ -332,17 +405,49 @@ const Banners = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={lblS}>Banner Title *</label>
-                    <input className="fi" style={inpS} placeholder="e.g. Summer Sale, New Arrivals" value={formData.bName} onChange={e => setFormData(p => ({ ...p, bName: e.target.value }))} required />
+                    <input 
+                      className="fi" 
+                      style={inpS} 
+                      placeholder="e.g. Summer Sale, New Arrivals" 
+                      value={formData.bName} 
+                      onChange={e => setFormData(p => ({ ...p, bName: e.target.value }))} 
+                      required 
+                      disabled={submitLoading}
+                    />
                   </div>
                   <div>
                     <label style={lblS}>Description</label>
-                    <textarea className="fi" style={{ ...inpS, resize: 'vertical', minHeight: '90px' }} placeholder="Brief description about the banner..." value={formData.bDescription} onChange={e => setFormData(p => ({ ...p, bDescription: e.target.value }))} />
+                    <textarea 
+                      className="fi" 
+                      style={{ ...inpS, resize: 'vertical', minHeight: '90px' }} 
+                      placeholder="Brief description about the banner..." 
+                      value={formData.bDescription} 
+                      onChange={e => setFormData(p => ({ ...p, bDescription: e.target.value }))} 
+                      disabled={submitLoading}
+                    />
                   </div>
                 </div>
               </div>
+              
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '0 26px 22px' }}>
-                <button type="button" style={cancelBtnS} onClick={() => setModal(null)}>Cancel</button>
-                <button type="submit" className="sb" style={submitBtnS}>{modal === 'add' ? 'Add Banner' : 'Save Changes'}</button>
+                <button type="button" style={cancelBtnS} onClick={() => setModal(null)} disabled={submitLoading}>Cancel</button>
+                <button 
+                  type="submit" 
+                  className={`sb ${submitLoading ? 'btn-disabled' : ''}`} 
+                  style={submitBtnS}
+                  disabled={submitLoading}
+                >
+                  {submitLoading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                      </span>
+                      {modal === 'add' ? 'Adding...' : 'Saving...'}
+                    </span>
+                  ) : (
+                    modal === 'add' ? 'Add Banner' : 'Save Changes'
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -355,15 +460,33 @@ const Banners = () => {
           <div style={modalS('sm')}>
             <div style={{ padding: '36px 28px 28px', textAlign: 'center' }}>
               <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-                {deleteLoading ? <div style={{ animation: 'spin 1s linear infinite' }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg></div> : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>}
+                {deleteLoading ? 
+                  <div style={{ animation: 'spin 1s linear infinite' }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                  </div> : 
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                }
               </div>
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a3e', margin: '0 0 8px' }}>Delete Banner?</h2>
-              <p style={{ fontSize: '13px', color: '#8b8fa3', margin: '0 0 4px' }}>This will remove the banner and cannot be undone.</p>
+              <p style={{ fontSize: '13px', color: '#8b8fa3', margin: '0 0 4px' }}>This will permanently remove the banner.</p>
               <p style={{ fontSize: '14px', fontWeight: 600, color: '#555', margin: '0 0 22px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>"{selectedBanner.bName}"</p>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                {/* FIXED SYNTAX ERROR HERE */}
-                <button style={cancelBtnS} onClick={() => setModal(null)} disabled={deleteLoading}>Cancel</button>
-                <button className="db" style={{ ...delBtnS, opacity: deleteLoading ? 0.7 : 1 }} onClick={handleDelete} disabled={deleteLoading}>{deleteLoading ? 'Deleting...' : 'Yes, Delete'}</button>
+                <button style={{ ...cancelBtnS, opacity: deleteLoading ? 0.6 : 1 }} onClick={() => setModal(null)} disabled={deleteLoading}>Cancel</button>
+                <button 
+                  className={`db ${deleteLoading ? 'btn-disabled' : ''}`} 
+                  style={{ ...delBtnS, opacity: deleteLoading ? 0.7 : 1 }} 
+                  onClick={handleDelete} 
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                      </span>
+                      Deleting...
+                    </span>
+                  ) : 'Yes, Delete'}
+                </button>
               </div>
             </div>
           </div>
@@ -388,6 +511,5 @@ const submitBtnS = { padding: '10px 28px', background: 'linear-gradient(135deg,#
 const delBtnS = { padding: '10px 28px', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239,68,68,.35)', transition: 'all .2s', fontFamily: 'inherit' };
 const uploadZoneS = { border: '2px dashed #d1d5f0', borderRadius: '14px', padding: '28px', textAlign: 'center', cursor: 'pointer', transition: 'all .2s', background: '#fafbfe' };
 const pgBtn = (a) => ({ width: '34px', height: '34px', borderRadius: '9px', border: a ? 'none' : '1px solid #e2e5f1', background: a ? 'linear-gradient(135deg,#6c5ce7,#a855f7)' : '#fff', color: a ? '#fff' : '#666', cursor: 'pointer', fontSize: '13px', fontWeight: a ? 600 : 400, transition: 'all .15s', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
-const badge = (t) => { const m = { 'Active': { bg: '#ecfdf5', c: '#059669', b: '#a7f3d0' }, 'Inactive': { bg: '#f4f5f8', c: '#6b7280', b: '#e2e5f1' } }; const s = m[t] || m['Active']; return { display: 'inline-block', padding: '3px 11px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: s.bg, color: s.c, border: `1px solid ${s.b}` }; };
 
 export default Banners;
